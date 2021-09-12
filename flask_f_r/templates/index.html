@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<head>
+    <script src="https://cdn.socket.io/3.1.3/socket.io.min.js" integrity="sha384-cPwlPLvBTa3sKAgddT6krw0cJat7egBga3DJepJyrLl4Q9/5WLra3rrnMcyTyOnh" crossorigin="anonymous"></script>
+    <script src="https://docs.opencv.org/3.3.1/opencv.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+    <style>
+        .gui{
+            position: fixed;
+            top: 30px;
+            left: 30px;
+        }
+        .hidden{
+            display: block;
+        }
+        .main_wrap{
+            display: table;
+            width: 100vw;
+            height: 100vh;
+        }
+        .list_column{
+            display: table-cell;
+            width: 20%;
+            height: 100%;
+            background-color: blue;
+        }
+        .video_column{
+            padding-top: 50px;
+            display: table-cell;
+            width: 60%;
+            height: 100%;
+            background-color: yellow;
+        }
+        .gui_column{
+            display: table-cell;
+            height: 100%;
+            width: 20%;
+            background-color: red;
+        }
+        .screen_video_wrap{
+   
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+        }
+        #displayShare{
+            position: absolute;
+        }
+        .upper{
+            position: absolute;
+            z-index: 100000;
+        }
+    </style>
+</head>
+<body style="margin: 0px;">
+<div class="main_wrap">
+    <div class="list_column">
+        
+    </div>
+    <div class="video_column">
+        <div class="screen_video_wrap" id='screen_video_wrap'>
+            <button id="start_capture" onclick=startCapture()>Start Screen Capture</button>
+            <video autoplay="true" id="displayShare"></video>
+        </div>
+    </div>
+    <div class='gui_column'>
+        <div class="upper">
+        <button class="btn_video-to-frames" onclick=videoToFrames()>Start Detecting</button>
+        <input class='input_delay' id='reportDelay' type="text" placeholder='Report delay (sec)'>
+    </div>
+    </div>
+</div>
+<div class="hidden">
+        <canvas id="videoToFrames"></canvas>
+        <img id="rec_faces_output">
+    </div>
+<script>
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+         socket.on('connect',
+         function() {  
+         console.log('initSocketIO')
+     })
+    const video = document.querySelector("#displayShare");
+
+    function startCapture(){
+
+        video.width = 0;
+        video.height = 0; 
+
+        navigator.mediaDevices.getDisplayMedia({ video: true })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+            video.height = stream.getVideoTracks()[0].getSettings().height;
+            video.width = stream.getVideoTracks()[0].getSettings().width;
+            // video.width =  document.getElementById('screen_video_wrap').getBoundingClientRect().width * 0.85;
+    })};
+
+    window.addEventListener('resize', function(event){
+      video.width =  document.getElementById('screen_video_wrap').getBoundingClientRect().width * 0.85;
+    });
+    
+    socket.on('response_back', function(image){
+            console.log('Got Image!')
+            const image_id = document.getElementById('rec_faces_output');
+            image_id.src = image;
+        });
+
+    function videoToFrames(){
+        let delay = parseInt(document.getElementById('reportDelay').value, 10) * 1000;
+        console.log(delay)
+        // let delay = 5000
+        processVideo()
+        function processVideo() {
+
+            let src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+            let dst = new cv.Mat(video.height, video.width, cv.CV_8UC1);
+            let cap = new cv.VideoCapture(video);
+
+            cap.read(src);
+            cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+            cv.imshow('videoToFrames', dst);
+
+            var type = "image/png"
+            var data = document.getElementById("videoToFrames").toDataURL(type);
+            data = data.replace('data:' + type + ';base64,', ''); 
+
+            socket.emit('rec_faces_output', data);
+            setTimeout(processVideo, delay);
+        }
+    }
+
+</script>
+
+</body>

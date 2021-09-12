@@ -1,0 +1,10 @@
+#canvasOutput{
+        display: none;
+        }
+.user_video_content{
+        position: absolute;
+        left: 50%;
+        right: 50%;
+        width: 500px;
+        height: auto;
+}
